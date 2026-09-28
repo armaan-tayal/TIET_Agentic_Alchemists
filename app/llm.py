@@ -23,6 +23,9 @@ log = logging.getLogger("llm")
 
 # USD per 1M tokens (input, output). Gemini API paid tier, text.
 PRICING: dict[str, tuple[float, float]] = {
+    "gemini-3.8-flash": (0.75, 3.75),
+    "gemini-3.7-flash": (0.75, 3.75),
+    "gemini-3.6-flash": (0.75, 3.75),
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-pro": (1.25, 10.00),
@@ -59,7 +62,7 @@ class UsageTotals(Usage):
 
 
 def cost_for(model: str, input_tokens: int, output_tokens: int) -> float:
-    pin, pout = PRICING.get(model, PRICING["gemini-2.5-flash"])
+    pin, pout = PRICING.get(model, PRICING["gemini-3.8-flash"])
     return (input_tokens * pin + output_tokens * pout) / 1_000_000
 
 

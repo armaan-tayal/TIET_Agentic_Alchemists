@@ -41,7 +41,7 @@ class Settings:
     paraphrase_ce_model: str = _str("paraphrase_ce_model", "cross-encoder/stsb-distilroberta-base")
 
     # LLM (Google Gemini — Muse Spark)
-    llm_model: str = _str("llm_model", "gemini-2.5-flash")
+    llm_model: str = _str("llm_model", "gemini-3.8-flash")
     llm_base_url: str = _str("llm_base_url", "https://generativelanguage.googleapis.com/v1beta/openai")
     llm_timeout_s: float = _num("llm_timeout_s", 25.0)
     llm_max_retries: int = int(_num("llm_max_retries", 2))

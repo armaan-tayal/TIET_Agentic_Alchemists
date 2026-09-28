@@ -72,13 +72,13 @@ def test_has_credentials_reads_gemini_api_key(monkeypatch):
 
 
 def test_cost_for_gemini_pricing():
-    # $0.30 / 1M input, $2.50 / 1M output (gemini-2.5-flash)
-    assert cost_for("gemini-2.5-flash", 1_000_000, 1_000_000) == pytest.approx(2.80)
-    assert cost_for("gemini-2.5-flash-lite", 2_000_000, 0) == pytest.approx(0.20)
+    # $0.75 / 1M input, $3.75 / 1M output (gemini-3.8-flash)
+    assert cost_for("gemini-3.8-flash", 1_000_000, 1_000_000) == pytest.approx(4.50)
+    assert cost_for("gemini-2.5-flash", 2_000_000, 0) == pytest.approx(0.60)
 
 
 def test_default_model_is_gemini():
-    assert settings.llm_model == "gemini-2.5-flash"
+    assert settings.llm_model == "gemini-3.8-flash"
     assert settings.llm_base_url == "https://generativelanguage.googleapis.com/v1beta/openai"
 
 
@@ -93,7 +93,7 @@ def test_structured_falls_back_to_json_mode(monkeypatch):
     assert out.domain == "display" and out.symptom == "flicker"
     # usage still logged from the JSON-mode response
     assert usage.input_tokens == 100 and usage.output_tokens == 50
-    assert usage.cost_usd == pytest.approx(cost_for("gemini-2.5-flash", 100, 50))
+    assert usage.cost_usd == pytest.approx(cost_for("gemini-3.8-flash", 100, 50))
     # totals accumulate
     assert client.totals.cost_usd == pytest.approx(usage.cost_usd)
 

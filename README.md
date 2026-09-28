@@ -145,7 +145,7 @@ results.jsonl       # one API response per line (from prewarm)
 
 ## Configuration
 
-Thresholds live in `thresholds.json` (written by `eval/run_eval.py --tune`); env vars override both. Key settings in [`.env.example`](.env.example): `GEMINI_API_KEY`, `LLM_MODEL` (default `gemini-2.5-flash`), `LLM_BASE_URL` (default `https://generativelanguage.googleapis.com/v1beta/openai`), `PIPELINE_MODE` (`auto` / `rules` / `llm`).
+Thresholds live in `thresholds.json` (written by `eval/run_eval.py --tune`); env vars override both. Key settings in [`.env.example`](.env.example): `GEMINI_API_KEY`, `LLM_MODEL` (default `gemini-3.8-flash`), `LLM_BASE_URL` (default `https://generativelanguage.googleapis.com/v1beta/openai`), `PIPELINE_MODE` (`auto` / `rules` / `llm`).
 
 ## License
 
