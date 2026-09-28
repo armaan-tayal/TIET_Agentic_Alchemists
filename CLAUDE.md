@@ -99,11 +99,11 @@ These are graded automatically. Any code change must keep every one of them true
 ## Commands
 ```bash
 pip install -r requirements.txt
-cp .env.example .env                   # add ANTHROPIC_API_KEY; without it PIPELINE_MODE=auto falls back to rules
+cp .env.example .env                   # add MODEL_API_KEY (Meta Model API); without it PIPELINE_MODE=auto falls back to rules
 python scripts/build_index.py          # index deeplinks.json (downloads local models on first run)
 python scripts/prewarm.py --reset      # run data/siis_responses.json through the pipeline -> cache + results.jsonl
 uvicorn app.api:app --port 8000        # run API
-pytest -q                              # unit + end-to-end tests (fake Claude client, no key needed)
+pytest -q                              # unit + end-to-end tests (fake Muse Spark client, no key needed)
 python eval/run_eval.py                # compliance + deeplink accuracy + hit rate + latency -> eval/metrics.md
 python eval/run_eval.py --tune         # re-tune thresholds on the even split -> thresholds.json
 python eval/ablations.py               # ablation tables -> eval/ablations.md

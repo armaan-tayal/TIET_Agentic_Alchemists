@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-28 20:31",
+  "generated_at": "2026-09-28 20:44",
   "mode": "rules",
-  "llm_model": "none (no ANTHROPIC_API_KEY)",
+  "llm_model": "none (no MODEL_API_KEY)",
   "compliance": {
     "responses": 20,
     "schema_errors": 0,
@@ -220,9 +220,9 @@
   },
   "latency": {
     "hit_requests": 177,
-    "hit_p50_ms": 96.9,
-    "hit_p95_ms": 183.2,
-    "hit_server_p95_ms": 180.4,
+    "hit_p50_ms": 96.6,
+    "hit_p95_ms": 204.4,
+    "hit_server_p95_ms": 202.4,
     "miss_requests": 20,
     "miss_p50_ms": 628.2,
     "miss_p95_ms": 3467.8

@@ -7,7 +7,7 @@
 Users describe device problems in vague, emotional language ("screen flickers and battery dies fast"). Support content (SIIS articles) is long and generic. The gap between complaint → correct Settings screen costs users time and support teams money.
 
 ## Solution
-A deterministic-first pipeline powered by **Muse (Anthropic)**:
+A deterministic-first pipeline powered by **Muse Spark (Meta Model API)**:
 
 - **Muse** handles only what needs language: query understanding, paraphrase generation, and step extraction with source spans (structured output via `messages.parse`).
 - **Code** handles everything verifiable: grounding each step against its source span, grouping steps into one-screen actions, hybrid (BM25 + dense + cross-encoder rerank) deeplink retrieval with leaf-screen preference, rule-based categorization (`auto → manual → critical`), field validation, and URL scrubbing.
@@ -33,7 +33,7 @@ Ablations show each component earns its place: dense-only retrieval 69% → full
 ## Run it
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # add ANTHROPIC_API_KEY for full Muse mode (optional)
+cp .env.example .env   # add MODEL_API_KEY for full Muse Spark mode (optional)
 python scripts/build_index.py
 python scripts/prewarm.py --reset
 uvicorn app.api:app --port 8000
