@@ -1,7 +1,7 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 pydantic>=2.7
-anthropic>=1.0
+openai>=1.30
 faiss-cpu>=1.8
 sentence-transformers>=3.0
 rank-bm25>=0.2.2

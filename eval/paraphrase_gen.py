@@ -1,7 +1,7 @@
-"""Generate extra *unseen* paraphrases with Muse Spark for hit-rate testing -> eval/paraphrases_llm.json.
+"""Generate extra *unseen* paraphrases with Gemini for hit-rate testing -> eval/paraphrases_llm.json.
 
 Uses a different prompt from the enrich step so the test set does not mirror what was cached.
-Without MODEL_API_KEY this exits cleanly; the hand-written eval/paraphrases.json is always used.
+Without GEMINI_API_KEY this exits cleanly; the hand-written eval/paraphrases.json is always used.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ Use your own words: vary vocabulary, length and tone, and never copy phrases fro
 def main() -> int:
     llm = LLMClient()
     if not llm.available:
-        print("MODEL_API_KEY not set - skipping LLM paraphrase generation (hand-written set still used).")
+        print("GEMINI_API_KEY not set - skipping LLM paraphrase generation (hand-written set still used).")
         return 0
     out = {"positives": [], "negatives": []}
     for row in siis_rows():

@@ -92,17 +92,17 @@
       "variant": "Rules only (no LLM)",
       "fully_compliant": "20/20",
       "violations": 0,
-      "p50_ms": 438,
-      "p95_ms": 3243,
+      "p50_ms": 404,
+      "p95_ms": 3282,
       "cost_usd_per_query": 0.0
     },
     {
       "variant": "Hybrid (LLM extract/enrich + code) - production",
-      "note": "n/a: set MODEL_API_KEY"
+      "note": "n/a: set GEMINI_API_KEY"
     },
     {
       "variant": "Full-LLM (LLM writes whole plan)",
-      "note": "n/a: set MODEL_API_KEY"
+      "note": "n/a: set GEMINI_API_KEY"
     }
   ]
 }

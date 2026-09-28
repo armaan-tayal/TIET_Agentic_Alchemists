@@ -1,8 +1,8 @@
 """The only place that talks to an LLM. Structured output, token/cost logging, retries, timeout.
 
-Provider: Meta Model API (Muse Spark) over its Anthropic-Messages-compatible
-endpoint. The `anthropic` SDK is pointed at the Meta base host and authenticates
-with a Bearer token (MODEL_API_KEY from the dev.meta.ai dashboard).
+Provider: Google Gemini via its OpenAI-compatible endpoint. The `openai` SDK is
+pointed at Google's base URL and authenticates with a Bearer token
+(GEMINI_API_KEY from https://aistudio.google.com/apikey — free tier, no card).
 """
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ from app.config import Settings, settings as default_settings
 
 log = logging.getLogger("llm")
 
-# USD per 1M tokens (input, output). Meta Model API standard tier.
+# USD per 1M tokens (input, output). Gemini API paid tier, text.
 PRICING: dict[str, tuple[float, float]] = {
-    "muse-spark-1.3": (1.25, 4.25),
-    "muse-spark-1.2": (1.25, 4.25),
-    "muse-spark-1.1": (1.25, 4.25),
+    "gemini-2.5-flash": (0.30, 2.50),
+    "gemini-2.5-flash-lite": (0.10, 0.40),
+    "gemini-2.5-pro": (1.25, 10.00),
 }
 
 T = TypeVar("T", bound=BaseModel)
@@ -53,29 +53,31 @@ class Usage:
         self.calls += other.calls
 
 
+@dataclass
+class UsageTotals(Usage):
+    pass
+
+
 def cost_for(model: str, input_tokens: int, output_tokens: int) -> float:
-    pin, pout = PRICING.get(model, PRICING["muse-spark-1.3"])
+    pin, pout = PRICING.get(model, PRICING["gemini-2.5-flash"])
     return (input_tokens * pin + output_tokens * pout) / 1_000_000
 
 
 @dataclass
 class LLMClient:
     cfg: Settings = field(default_factory=lambda: default_settings)
-    client: Any = None  # injectable (tests pass a fake with .messages.parse)
+    client: Any = None  # injectable (tests pass a fake with .chat.completions.parse)
     totals: Usage = field(default_factory=Usage)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def __post_init__(self) -> None:
         if self.client is None and self.cfg.pipeline_mode != "rules" and self.has_credentials():
-            import anthropic
+            import openai
 
-            # Meta Model API exposes an Anthropic-Messages-compatible endpoint:
-            # point the SDK at the Meta base host (it appends /v1/messages) and
-            # authenticate with a Bearer token. NOTE: use auth_token, not
-            # api_key — the latter sends an x-api-key header, which the Meta
-            # endpoint does not accept.
-            self.client = anthropic.Anthropic(
-                auth_token=os.getenv("MODEL_API_KEY"),
+            # Gemini's OpenAI-compatible endpoint: the SDK appends
+            # /chat/completions to the base URL. Auth is a Bearer token.
+            self.client = openai.OpenAI(
+                api_key=os.getenv("GEMINI_API_KEY"),
                 base_url=self.cfg.llm_base_url,
                 timeout=self.cfg.llm_timeout_s,
                 max_retries=self.cfg.llm_max_retries,
@@ -83,7 +85,7 @@ class LLMClient:
 
     @staticmethod
     def has_credentials() -> bool:
-        return bool(os.getenv("MODEL_API_KEY"))
+        return bool(os.getenv("GEMINI_API_KEY"))
 
     @property
     def available(self) -> bool:
@@ -96,43 +98,48 @@ class LLMClient:
     def structured(self, system: str, user: str, schema: type[T], max_tokens: int = 4096) -> tuple[T, Usage]:
         """Structured output with automatic fallback.
 
-        Prefers the SDK's ``messages.parse`` (structured-output beta). If the
-        provider endpoint rejects the beta (e.g. HTTP 400 on ``output_format``),
-        retries in JSON mode: the model is instructed to return a bare JSON
-        object, which is then validated against the schema here.
+        Prefers the SDK's ``chat.completions.parse`` (structured outputs). If
+        the endpoint rejects ``response_format`` (e.g. HTTP 400), retries in
+        JSON mode: the model is instructed to return a bare JSON object, which
+        is then validated against the schema here.
         """
         if not self.available:
-            raise LLMError("LLM not available (no MODEL_API_KEY or PIPELINE_MODE=rules)")
+            raise LLMError("LLM not available (no GEMINI_API_KEY or PIPELINE_MODE=rules)")
         try:
             return self._structured_parse(system, user, schema, max_tokens)
         except LLMError as exc:
             msg = str(exc).lower()
-            if "output_format" in msg or "not supported" in msg or "400" in msg or "bad request" in msg:
-                log.warning("structured-output beta unavailable (%s); falling back to JSON mode", exc)
+            if "response_format" in msg or "not supported" in msg or "400" in msg or "bad request" in msg:
+                log.warning("structured outputs unavailable (%s); falling back to JSON mode", exc)
                 return self._structured_json(system, user, schema, max_tokens)
             raise
 
     def _structured_parse(self, system: str, user: str, schema: type[T], max_tokens: int) -> tuple[T, Usage]:
         t0 = time.perf_counter()
         try:
-            resp = self.client.messages.parse(
+            resp = self.client.chat.completions.parse(
                 model=self.model,
                 max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                output_format=schema,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                response_format=schema,
             )
         except Exception as exc:  # SDK already retried transient errors
             raise LLMError(f"LLM call failed: {type(exc).__name__}: {exc}") from exc
         latency = (time.perf_counter() - t0) * 1000
-        if getattr(resp, "stop_reason", None) in ("refusal", "max_tokens"):
-            raise LLMError(f"LLM stopped with {resp.stop_reason}")
-        parsed = getattr(resp, "parsed_output", None)
+        choice = resp.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise LLMError(f"LLM refused: {choice.message.refusal}")
+        if choice.finish_reason == "length":
+            raise LLMError("LLM stopped with length (max_tokens)")
+        parsed = getattr(choice.message, "parsed", None)
         if parsed is None:
             raise LLMError("LLM returned no parsable structured output")
         u = getattr(resp, "usage", None)
-        it = int(getattr(u, "input_tokens", 0) or 0)
-        ot = int(getattr(u, "output_tokens", 0) or 0)
+        it = int(getattr(u, "prompt_tokens", 0) or 0)
+        ot = int(getattr(u, "completion_tokens", 0) or 0)
         usage = Usage(self.model, it, ot, cost_for(self.model, it, ot), latency, 1)
         with self._lock:
             self.totals.add(usage)
@@ -151,22 +158,23 @@ class LLMClient:
         )
         t0 = time.perf_counter()
         try:
-            resp = self.client.messages.create(
+            resp = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
             )
         except Exception as exc:  # SDK already retried transient errors
             raise LLMError(f"LLM call failed: {type(exc).__name__}: {exc}") from exc
         latency = (time.perf_counter() - t0) * 1000
-        if getattr(resp, "stop_reason", None) in ("refusal", "max_tokens"):
-            raise LLMError(f"LLM stopped with {resp.stop_reason}")
-        chunks: list[str] = []
-        for block in getattr(resp, "content", []) or []:
-            if getattr(block, "type", None) == "text":
-                chunks.append(getattr(block, "text", ""))
-        text = "".join(chunks).strip()
+        choice = resp.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise LLMError(f"LLM refused: {choice.message.refusal}")
+        if choice.finish_reason == "length":
+            raise LLMError("LLM stopped with length (max_tokens)")
+        text = (getattr(choice.message, "content", None) or "").strip()
         if text.startswith("```"):  # tolerate fences even though we asked for none
             text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
@@ -179,8 +187,8 @@ class LLMClient:
         except Exception as exc:
             raise LLMError(f"LLM JSON failed schema validation: {exc}") from exc
         u = getattr(resp, "usage", None)
-        it = int(getattr(u, "input_tokens", 0) or 0)
-        ot = int(getattr(u, "output_tokens", 0) or 0)
+        it = int(getattr(u, "prompt_tokens", 0) or 0)
+        ot = int(getattr(u, "completion_tokens", 0) or 0)
         usage = Usage(self.model, it, ot, cost_for(self.model, it, ot), latency, 1)
         with self._lock:
             self.totals.add(usage)
@@ -189,3 +197,16 @@ class LLMClient:
             schema.__name__, self.model, it, ot, usage.cost_usd, latency,
         )
         return parsed, usage
+
+    def reset(self) -> UsageTotals:
+        with self._lock:
+            totals = UsageTotals(
+                model=self.totals.model,
+                input_tokens=self.totals.input_tokens,
+                output_tokens=self.totals.output_tokens,
+                cost_usd=self.totals.cost_usd,
+                latency_ms=self.totals.latency_ms,
+                calls=self.totals.calls,
+            )
+            self.totals = Usage()
+        return totals

@@ -251,7 +251,7 @@ def main() -> int:
     rep: dict[str, Any] = {
         "generated_at": time.strftime("%Y-%m-%d %H:%M"),
         "mode": "llm" if engine.use_llm else "rules",
-        "llm_model": engine.cfg.llm_model if engine.use_llm else "none (no MODEL_API_KEY)",
+        "llm_model": engine.cfg.llm_model if engine.use_llm else "none (no GEMINI_API_KEY)",
         "compliance": compliance_section(results(), engine),
         "deeplinks": gold_section(engine),
         "cache": cache_section(engine, sim, para),

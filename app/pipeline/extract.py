@@ -1,7 +1,7 @@
 """Step extraction from SIIS text. Every candidate step carries the verbatim source span it came from.
 
 Two extractors produce the same `CandidateStep` list:
-  * `llm_extract`  - Muse Spark picks query-relevant steps and quotes their spans (structured output).
+  * `llm_extract`  - Gemini picks query-relevant steps and quotes their spans (structured output).
   * `rules_extract` - deterministic sentence classifier (offline mode + ablation baseline).
 """
 from __future__ import annotations

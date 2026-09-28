@@ -223,8 +223,8 @@ def pipeline_ablation(engine: Engine) -> list[dict[str, Any]]:
         measure("Hybrid (LLM extract/enrich + code) - production", lambda r: hybrid.troubleshoot(r["original_query"], r["siis_response"], use_cache=False, write_cache=False))
         measure("Full-LLM (LLM writes whole plan)", lambda r: full_llm_plan(hybrid, r["original_query"], r["siis_response"]))
     else:
-        out.append({"variant": "Hybrid (LLM extract/enrich + code) - production", "note": "n/a: set MODEL_API_KEY"})
-        out.append({"variant": "Full-LLM (LLM writes whole plan)", "note": "n/a: set MODEL_API_KEY"})
+        out.append({"variant": "Hybrid (LLM extract/enrich + code) - production", "note": "n/a: set GEMINI_API_KEY"})
+        out.append({"variant": "Full-LLM (LLM writes whole plan)", "note": "n/a: set GEMINI_API_KEY"})
     return out
 
 

@@ -2,10 +2,10 @@
 
 Turns vague Galaxy device complaints ("screen flickers and battery dies fast") into **validated, ordered troubleshooting plans** with one-tap Settings deeplinks — served over a REST API.
 
-Built for the **Samsung PRISM Hackathon**. Powered by **Muse Spark** (Meta Model API) with a **deterministic-first** design: the LLM only does language understanding, paraphrasing, and step extraction — code does all grounding, deeplink matching, ordering, formatting, and validation.
+Built for the **Samsung PRISM Hackathon**. Powered by **Google Gemini** (via its OpenAI-compatible endpoint) with a **deterministic-first** design: the LLM only does language understanding, paraphrasing, and step extraction — code does all grounding, deeplink matching, ordering, formatting, and validation.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![LLM: Muse Spark](https://img.shields.io/badge/LLM-Muse%20Spark%20(Meta)-orange.svg)](https://dev.meta.ai/)
+[![LLM: Google Gemini](https://img.shields.io/badge/LLM-Google%20Gemini-blue.svg)](https://ai.google.dev)
 [![API: FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -45,11 +45,11 @@ query ─► local embed ─► FAISS paraphrase index ─► slot check ─► 
 
 **Design principle: deterministic-first.** When in doubt, logic lives in Python, not in the prompt.
 
-### Where Muse Spark is used (and where it isn't)
+### Where Gemini is used (and where it isn't)
 
-All LLM calls go through a single wrapper, [`app/llm.py`](app/llm.py), which talks to Meta's Model API over its Anthropic-Messages-compatible endpoint (`https://api.meta.ai`, Bearer auth via `MODEL_API_KEY`). It prefers the structured-output API (`messages.parse` against Pydantic models) and automatically falls back to JSON mode if the endpoint rejects the beta — with retries, timeouts, and per-call token/cost logging either way. No other provider is wired in — there is no OpenAI/Gemini/local-LLM path.
+All LLM calls go through a single wrapper, [`app/llm.py`](app/llm.py), which talks to Google's Gemini API over its OpenAI-compatible endpoint (`https://generativelanguage.googleapis.com/v1beta/openai`, Bearer token via `GEMINI_API_KEY`). It prefers the structured-output API (`chat.completions.parse` against Pydantic models) and automatically falls back to JSON mode if the endpoint rejects `response_format` — with retries, timeouts, and per-call token/cost logging either way. Gemini is the only provider wired in — there is no Anthropic/OpenAI/local-LLM path.
 
-| Stage | Muse role | File |
+| Stage | Gemini role | File |
 |---|---|---|
 | Enrich | Canonical query, slots, 8–10 paraphrases | `app/pipeline/enrich.py` |
 | Extract | Candidate steps with source spans from SIIS text | `app/pipeline/extract.py` |
@@ -57,7 +57,7 @@ All LLM calls go through a single wrapper, [`app/llm.py`](app/llm.py), which tal
 
 Everything else is code: grounding validation, screen-path parsing, hybrid deeplink retrieval, category rules, ordering, word-count/casing/URL scrubbing, cache (FAISS + SQLite), latency budgets.
 
-Without a `MODEL_API_KEY`, `PIPELINE_MODE=auto` falls back to a deterministic rules pipeline — every result above was produced in this mode, so the repo is fully reproducible without a key.
+Without a `GEMINI_API_KEY`, `PIPELINE_MODE=auto` falls back to a deterministic rules pipeline — every result above was produced in this mode, so the repo is fully reproducible without a key.
 
 ---
 
@@ -65,7 +65,7 @@ Without a `MODEL_API_KEY`, `PIPELINE_MODE=auto` falls back to a deterministic ru
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # add MODEL_API_KEY (optional; without it, PIPELINE_MODE=auto uses rules)
+cp .env.example .env          # add GEMINI_API_KEY (optional; without it, PIPELINE_MODE=auto uses rules)
 
 python scripts/build_index.py # index data/deeplinks.json (downloads local models on first run)
 python scripts/prewarm.py --reset   # run all provided queries -> cache + results.jsonl
@@ -110,7 +110,7 @@ The response contract is fixed in [`app/schema.py`](app/schema.py) — field nam
 ## Evaluation
 
 ```bash
-pytest -q                          # unit + end-to-end tests (fake Muse Spark client, no key needed)
+pytest -q                          # unit + end-to-end tests (fake Gemini client, no key needed)
 python eval/run_eval.py             # compliance + deeplink accuracy + hit rate + latency -> eval/metrics.md
 python eval/run_eval.py --tune      # re-tune thresholds on the even split -> thresholds.json
 python eval/run_eval.py --latency   # latency gates only
@@ -121,7 +121,7 @@ python eval/ablations.py            # full-LLM vs hybrid vs rules vs no-slot-gua
 
 - Deeplink retrieval: BM25-only 25% → dense-only 69% → **full hybrid + rerank + leaf preference + threshold 100%**
 - Multi-vector paraphrase cache: single-vector 48% hit rate → **full 98%**; removing the cross-encoder collapses it to 5%
-- Rules-only pipeline: 20/20 fully compliant at $0.00/query — Muse Spark (hybrid) adds language robustness on top
+- Rules-only pipeline: 20/20 fully compliant at $0.00/query — Gemini (hybrid) adds language robustness on top
 
 ---
 
@@ -131,7 +131,7 @@ python eval/ablations.py            # full-LLM vs hybrid vs rules vs no-slot-gua
 app/
   api.py            # FastAPI: POST /v1/troubleshoot, GET /health
   schema.py         # Provided Pydantic contract — DO NOT MODIFY
-  llm.py            # Single Muse Spark client wrapper (structured output + JSON fallback, token/cost logging, retries)
+  llm.py            # Single Gemini client wrapper (structured output + JSON fallback, token/cost logging, retries)
   engine.py         # Pipeline orchestrator
   embed.py          # Local models (bi-encoder + 2 cross-encoders), loaded once
   pipeline/         # enrich, extract, grounding, path_parser, deeplinks, ordering, validators
@@ -139,13 +139,13 @@ app/
 data/               # siis_responses.json, deeplinks.json, input.txt, samples/, index/ (built)
 scripts/            # build_index.py, prewarm.py
 eval/               # run_eval.py, ablations.py, paraphrase_gen.py, metrics.md, ablations.md
-tests/              # pytest suite (fake Muse Spark client)
+tests/              # pytest suite (fake Gemini client)
 results.jsonl       # one API response per line (from prewarm)
 ```
 
 ## Configuration
 
-Thresholds live in `thresholds.json` (written by `eval/run_eval.py --tune`); env vars override both. Key settings in [`.env.example`](.env.example): `MODEL_API_KEY`, `LLM_MODEL` (default `muse-spark-1.3`), `LLM_BASE_URL` (default `https://api.meta.ai`), `PIPELINE_MODE` (`auto` / `rules` / `llm`).
+Thresholds live in `thresholds.json` (written by `eval/run_eval.py --tune`); env vars override both. Key settings in [`.env.example`](.env.example): `GEMINI_API_KEY`, `LLM_MODEL` (default `gemini-2.5-flash`), `LLM_BASE_URL` (default `https://generativelanguage.googleapis.com/v1beta/openai`), `PIPELINE_MODE` (`auto` / `rules` / `llm`).
 
 ## License
 
