@@ -11,9 +11,9 @@ Built for the **Samsung PRISM Hackathon**. Powered by **Google Gemini** (via its
 
 ---
 
-## Demo
+## Demo Video on YouTube
 
-[Demo video uploaded on YouTube](https://youtu.be/Psh_xwHFJDE) — live walkthrough: API health check, a real complaint processed end-to-end, the cache fast path on a repeat query, and a second complaint (≤ 5 min).
+[Demo Video uploaded on YouTube](https://youtu.be/Psh_xwHFJDE) — live walkthrough: API health check, a real complaint processed end-to-end, the cache fast path on a repeat query, and a second complaint (≤ 5 min).
 
 ---
 
